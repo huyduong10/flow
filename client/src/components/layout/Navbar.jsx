@@ -42,6 +42,23 @@ const Navbar = () => {
             </div>
           </div>
 
+          {/* Navigation Links */}
+          <nav className="hidden md:flex items-center gap-1.5">
+            <button
+              onClick={() => navigate('/')}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition"
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => navigate('/warehouse/pending')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition"
+            >
+              <span>Quản lý kho</span>
+              <span className="w-2 h-2 rounded-full bg-cyan-500" />
+            </button>
+          </nav>
+
           {/* User Profile & Logout (RBAC Enforced) */}
           <div className="flex items-center gap-3">
             {/* Role Badge */}

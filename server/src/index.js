@@ -42,6 +42,8 @@ app.use('/api/requests', require('./routes/purchaseRequest.routes'));
 app.use('/api/vendor-quotes', require('./routes/vendor.routes'));
 app.use('/api/contracts', require('./routes/contract.routes'));
 app.use('/api/payments', require('./routes/payment.routes'));
+app.use('/api/warehouse', require('./modules/warehouse/warehouse.routes'));
+app.use('/api/material-requests', require('./modules/material-requests/material-request.routes'));
 
 // ─── Nested vendor routes on /api/requests/:id ──────────────
 // POST   /api/requests/:id/vendors          - Thu mua nhập danh sách báo giá và chọn NCC tối ưu

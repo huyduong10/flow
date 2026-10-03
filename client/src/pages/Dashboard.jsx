@@ -1,21 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   requestApi,
   vendorApi,
   contractApi,
   paymentApi,
+  warehouseApi,
+  materialRequestApi,
 } from '../services/api';
 import {
   ROLES,
   ROLE_CONFIG,
   STATUS_LABELS,
+  MATERIAL_REQUEST_STATUS,
   formatCurrency,
   formatDate,
 } from '../utils/constants';
 
 // Modals
 import CreateRequestModal from '../components/modals/CreateRequestModal';
+import CreateMaterialRequestModal from '../features/warehouse/CreateMaterialRequestModal';
 import CEOApprovalModal from '../components/modals/CEOApprovalModal';
 import VendorSelectionModal from '../components/modals/VendorSelectionModal';
 import ContractUploadModal from '../components/modals/ContractUploadModal';
@@ -41,20 +46,27 @@ import {
   Banknote,
   DollarSign,
   TrendingUp,
+  Warehouse,
+  Truck,
+  PackageCheck,
 } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Data states
   const [requests, setRequests] = useState([]);
   const [vendorQuotes, setVendorQuotes] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [materialRequests, setMaterialRequests] = useState([]);
+  const [pendingWarehouseCount, setPendingWarehouseCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   // Modal active states
   const [openCreatePR, setOpenCreatePR] = useState(false);
+  const [openCreateMR, setOpenCreateMR] = useState(false);
   const [activeCeoPR, setActiveCeoPR] = useState(null);
   const [activeVendorModal, setActiveVendorModal] = useState(null);
   const [activeContractModal, setActiveContractModal] = useState(null);
@@ -69,17 +81,21 @@ const Dashboard = () => {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [reqRes, vqRes, ctRes, payRes] = await Promise.allSettled([
+      const [reqRes, vqRes, ctRes, payRes, mrRes, whRes] = await Promise.allSettled([
         requestApi.getAll({ limit: 50 }),
         vendorApi.getAll({ limit: 50 }),
         contractApi.getAll({ limit: 50 }),
         paymentApi.getAll({ limit: 50 }),
+        materialRequestApi.getAll({ limit: 50 }),
+        warehouseApi.getPendingRequests(),
       ]);
 
       if (reqRes.status === 'fulfilled') setRequests(reqRes.value.data.data || []);
       if (vqRes.status === 'fulfilled') setVendorQuotes(vqRes.value.data.data || []);
       if (ctRes.status === 'fulfilled') setContracts(ctRes.value.data.data || []);
       if (payRes.status === 'fulfilled') setPayments(payRes.value.data.data || []);
+      if (mrRes.status === 'fulfilled') setMaterialRequests(mrRes.value.data.data || []);
+      if (whRes.status === 'fulfilled') setPendingWarehouseCount(whRes.value.data.data?.length || 0);
     } catch (err) {
       console.error('Error loading dashboard data:', err);
     } finally {
@@ -136,16 +152,99 @@ const Dashboard = () => {
                 Làm mới
               </button>
 
-              {user?.role === ROLES.SITE_MANAGER && (
+              {user?.role === ROLES.WAREHOUSE_MANAGER && (
                 <button
-                  onClick={() => setOpenCreatePR(true)}
-                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition"
+                  onClick={() => navigate('/warehouse/pending')}
+                  className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 active:scale-95 rounded-xl shadow-md shadow-cyan-500/25 flex items-center gap-1.5 transition"
                 >
-                  <Plus className="w-4 h-4" /> Tạo Yêu Cầu Cấp Vật Tư
+                  <Warehouse className="w-4 h-4" /> Bàn Làm Việc Kho ({pendingWarehouseCount} Chờ)
                 </button>
+              )}
+
+              {user?.role === ROLES.SITE_MANAGER && (
+                <>
+                  <button
+                    onClick={() => setOpenCreateMR(true)}
+                    className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 rounded-xl shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition"
+                  >
+                    <Plus className="w-4 h-4" /> Yêu Cầu Cấp Vật Tư (Gửi Kho)
+                  </button>
+
+                  <button
+                    onClick={() => setOpenCreatePR(true)}
+                    className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition"
+                  >
+                    <Plus className="w-4 h-4" /> Mua Sắm Trực Tiếp
+                  </button>
+                </>
               )}
             </div>
           </div>
+
+          {/* SITE MANAGER NOTIFICATION BANNER (WAITING CONFIRMATION) */}
+          {user?.role === ROLES.SITE_MANAGER &&
+            materialRequests.filter((mr) => mr.status === 'WAITING_SITE_CONFIRMATION').length > 0 && (
+              <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                    <Truck className="w-5 h-5 animate-bounce" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold block">
+                      Thông báo công trường:{' '}
+                      {
+                        materialRequests.filter((mr) => mr.status === 'WAITING_SITE_CONFIRMATION')
+                          .length
+                      }{' '}
+                      đơn vật tư đã được Quản lý kho xuất cấp!
+                    </span>
+                    <span className="text-[11px] text-blue-700">
+                      Vui lòng kiểm đếm hàng thực nhận tại công trường và bấm xác nhận để hoàn tất.
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const firstWaiting = materialRequests.find(
+                      (mr) => mr.status === 'WAITING_SITE_CONFIRMATION'
+                    );
+                    if (firstWaiting) navigate(`/material-requests/${firstWaiting._id}`);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 flex items-center justify-center gap-1.5 shrink-0"
+                >
+                  <PackageCheck className="w-4 h-4" />
+                  <span>Xác nhận nhận hàng ngay</span>
+                </button>
+              </div>
+            )}
+
+          {/* WAREHOUSE MANAGER QUICK ALERT BANNER */}
+          {user?.role === ROLES.WAREHOUSE_MANAGER && pendingWarehouseCount > 0 && (
+            <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 text-cyan-950 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-cyan-600 text-white flex items-center justify-center shadow-sm">
+                  <Warehouse className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold block">
+                    Có {pendingWarehouseCount} phiếu yêu cầu cấp vật tư đang chờ kho kiểm tra & tách đơn!
+                  </span>
+                  <span className="text-[11px] text-cyan-800">
+                    Đối soát tồn kho thực tế, xuất kho phần có sẵn và tự động chuyển phần thiếu cho CEO duyệt.
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => navigate('/warehouse/pending')}
+                className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs shadow-md shadow-cyan-500/20 flex items-center justify-center gap-1.5 shrink-0"
+              >
+                <span>Kiểm tra tồn kho</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-5">
@@ -590,6 +689,12 @@ const Dashboard = () => {
       <CreateRequestModal
         isOpen={openCreatePR}
         onClose={() => setOpenCreatePR(false)}
+        onSuccess={loadAllData}
+      />
+
+      <CreateMaterialRequestModal
+        isOpen={openCreateMR}
+        onClose={() => setOpenCreateMR(false)}
         onSuccess={loadAllData}
       />
 

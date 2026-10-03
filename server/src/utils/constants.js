@@ -7,21 +7,34 @@
  * Vai trò người dùng trong hệ thống (RBAC)
  */
 const ROLES = Object.freeze({
-  SITE_MANAGER: 'SITE_MANAGER',   // Trưởng thi công
-  PROCUREMENT: 'PROCUREMENT',     // Thu mua
-  CEO: 'CEO',                     // Giám đốc
-  CHAIRMAN: 'CHAIRMAN',           // Chủ tịch
-  ACCOUNTANT: 'ACCOUNTANT',       // Kế toán
-  TREASURER: 'TREASURER',         // Thủ quỹ
+  SITE_MANAGER: 'SITE_MANAGER',           // Trưởng thi công
+  WAREHOUSE_MANAGER: 'WAREHOUSE_MANAGER', // Quản lý kho
+  PROCUREMENT: 'PROCUREMENT',             // Thu mua
+  CEO: 'CEO',                             // Giám đốc
+  CHAIRMAN: 'CHAIRMAN',                   // Chủ tịch
+  ACCOUNTANT: 'ACCOUNTANT',               // Kế toán
+  TREASURER: 'TREASURER',                 // Thủ quỹ
 });
 
 const ROLE_LABELS = Object.freeze({
   [ROLES.SITE_MANAGER]: 'Trưởng thi công',
+  [ROLES.WAREHOUSE_MANAGER]: 'Quản lý kho',
   [ROLES.PROCUREMENT]: 'Thu mua',
   [ROLES.CEO]: 'Giám đốc',
   [ROLES.CHAIRMAN]: 'Chủ tịch',
   [ROLES.ACCOUNTANT]: 'Kế toán',
   [ROLES.TREASURER]: 'Thủ quỹ',
+});
+
+/**
+ * Trạng thái Yêu cầu Cấp vật tư Kho (MaterialRequest)
+ */
+const MATERIAL_REQUEST_STATUS = Object.freeze({
+  PENDING_WAREHOUSE: 'PENDING_WAREHOUSE',                 // Chờ Quản lý kho kiểm tra tồn kho
+  WAITING_SITE_CONFIRMATION: 'WAITING_SITE_CONFIRMATION', // Đã xuất kho một phần hoặc toàn bộ, chờ công trường nhận
+  FULFILLED_BY_STOCK: 'FULFILLED_BY_STOCK',               // Đã cấp đủ 100% từ kho và công trường đã xác nhận
+  FORWARDED_TO_CEO: 'FORWARDED_TO_CEO',                   // Kho thiếu hàng, đã tự động chuyển CEO duyệt mua
+  REJECTED: 'REJECTED',                                   // Từ chối cấp
 });
 
 /**
@@ -31,6 +44,7 @@ const PURCHASE_REQUEST_STATUS = Object.freeze({
   DRAFT: 'DRAFT',                               // Nháp - Trưởng thi công đang soạn
   PENDING_CEO_APPROVAL: 'PENDING_CEO_APPROVAL', // Chờ CEO duyệt
   APPROVED_BY_CEO: 'APPROVED_BY_CEO',           // CEO đã duyệt
+  REJECTED_BY_CEO: 'REJECTED_BY_CEO',           // CEO từ chối
   REJECTED: 'REJECTED',                         // Bị từ chối
 });
 
@@ -91,6 +105,7 @@ const CHAIRMAN_APPROVAL_THRESHOLD = 50_000_000; // 50,000,000 VNĐ
 module.exports = {
   ROLES,
   ROLE_LABELS,
+  MATERIAL_REQUEST_STATUS,
   PURCHASE_REQUEST_STATUS,
   VENDOR_COMPARISON_STATUS,
   CONTRACT_STATUS,

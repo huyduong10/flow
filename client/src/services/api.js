@@ -71,4 +71,18 @@ export const paymentApi = {
   disburse: (id, data) => api.patch(`/payments/${id}/disburse`, data),
 };
 
+export const warehouseApi = {
+  getPendingRequests: (params) => api.get('/warehouse/pending-requests', { params }),
+  getRequestById: (id) => api.get(`/warehouse/requests/${id}`),
+  checkStock: (id, data) => api.patch(`/warehouse/requests/${id}/check`, data),
+  siteConfirm: (id) => api.patch(`/warehouse/requests/${id}/site-confirm`),
+  getHistory: (params) => api.get('/warehouse/history', { params }),
+};
+
+export const materialRequestApi = {
+  getAll: (params) => api.get('/material-requests', { params }),
+  getById: (id) => api.get(`/material-requests/${id}`),
+  create: (data) => api.post('/material-requests', data),
+};
+
 export default api;

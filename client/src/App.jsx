@@ -6,6 +6,10 @@ import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import WarehousePendingListPage from './features/warehouse/WarehousePendingListPage';
+import WarehouseInspectionPage from './features/warehouse/WarehouseInspectionPage';
+import MaterialRequestDetailPage from './features/warehouse/MaterialRequestDetailPage';
+import { ROLES } from './utils/constants';
 
 function App() {
   return (
@@ -24,6 +28,50 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <UnauthorizedPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Warehouse Pending List Page */}
+              <Route
+                path="/warehouse/pending"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={[
+                      ROLES.WAREHOUSE_MANAGER,
+                      ROLES.CEO,
+                      ROLES.CHAIRMAN,
+                      ROLES.SITE_MANAGER,
+                    ]}
+                  >
+                    <WarehousePendingListPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Warehouse Inspection Page */}
+              <Route
+                path="/warehouse/requests/:id"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={[
+                      ROLES.WAREHOUSE_MANAGER,
+                      ROLES.CEO,
+                      ROLES.CHAIRMAN,
+                      ROLES.SITE_MANAGER,
+                    ]}
+                  >
+                    <WarehouseInspectionPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Material Request Detail Page */}
+              <Route
+                path="/material-requests/:id"
+                element={
+                  <ProtectedRoute>
+                    <MaterialRequestDetailPage />
                   </ProtectedRoute>
                 }
               />

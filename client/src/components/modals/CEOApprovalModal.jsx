@@ -88,6 +88,13 @@ const CEOApprovalModal = ({ isOpen, onClose, request, onSuccess }) => {
             </div>
           </div>
 
+          {request.materialRequestId && (
+            <div className="flex items-center gap-2 p-2.5 bg-cyan-50 border border-cyan-200 rounded-xl text-cyan-900 text-[11px]">
+              <span className="font-bold">📦 Tách đơn tự động từ Kho:</span>
+              <span>Vật tư thiếu đã được Quản lý kho kiểm tra và chuyển CEO duyệt mua sắm ngoài.</span>
+            </div>
+          )}
+
           <div>
             <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] mb-2">
               Danh sách vật tư đề xuất:

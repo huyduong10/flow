@@ -14,12 +14,13 @@ import {
 } from 'lucide-react';
 
 const TEST_USERS = [
-  { role: ROLES.SITE_MANAGER, email: 'thicong@flow.vn', label: 'Trưởng thi công', desc: 'Lập PR vật tư' },
-  { role: ROLES.PROCUREMENT, email: 'thumua@flow.vn', label: 'Thu mua', desc: 'Báo giá & Ký HĐ' },
-  { role: ROLES.CEO, email: 'ceo@flow.vn', label: 'Giám đốc (CEO)', desc: 'Duyệt PR, NCC, Đề xuất TT' },
-  { role: ROLES.CHAIRMAN, email: 'chutich@flow.vn', label: 'Chủ tịch', desc: 'Duyệt NCC & Đề xuất TT (≥50tr)' },
-  { role: ROLES.ACCOUNTANT, email: 'ketoan@flow.vn', label: 'Kế toán', desc: 'Lập đề xuất thanh toán' },
-  { role: ROLES.TREASURER, email: 'thuquy@flow.vn', label: 'Thủ quỹ', desc: 'Chi tiền & Xác nhận UNC' },
+  { role: ROLES.SITE_MANAGER, email: 'thicong@flow.vn', password: '123456', label: 'Trưởng thi công', desc: 'Lập PR vật tư' },
+  { role: ROLES.WAREHOUSE_MANAGER, email: 'kho@company.com', password: 'Password123!', label: 'Quản lý kho', desc: 'Kiểm kho & Tách đơn' },
+  { role: ROLES.PROCUREMENT, email: 'thumua@flow.vn', password: '123456', label: 'Thu mua', desc: 'Báo giá & Ký HĐ' },
+  { role: ROLES.CEO, email: 'ceo@flow.vn', password: '123456', label: 'Giám đốc (CEO)', desc: 'Duyệt PR, NCC, Đề xuất TT' },
+  { role: ROLES.CHAIRMAN, email: 'chutich@flow.vn', password: '123456', label: 'Chủ tịch', desc: 'Duyệt NCC & Đề xuất TT (≥50tr)' },
+  { role: ROLES.ACCOUNTANT, email: 'ketoan@flow.vn', password: '123456', label: 'Kế toán', desc: 'Lập đề xuất thanh toán' },
+  { role: ROLES.TREASURER, email: 'thuquy@flow.vn', password: '123456', label: 'Thủ quỹ', desc: 'Chi tiền & Xác nhận UNC' },
 ];
 
 const LoginPage = () => {
@@ -59,9 +60,9 @@ const LoginPage = () => {
   };
 
   // Nút hỗ trợ điền nhanh tài khoản để người dùng kiểm thử mà không cần gõ phím
-  const handleQuickFill = (testEmail) => {
-    setEmail(testEmail);
-    setPassword('123456');
+  const handleQuickFill = (userItem) => {
+    setEmail(userItem.email);
+    setPassword(userItem.password || '123456');
     setError('');
   };
 
@@ -172,7 +173,7 @@ const LoginPage = () => {
                 <button
                   key={tu.role}
                   type="button"
-                  onClick={() => handleQuickFill(tu.email)}
+                  onClick={() => handleQuickFill(tu)}
                   className="p-2 text-left bg-slate-50 hover:bg-blue-50/70 hover:border-blue-300 border border-slate-200 rounded-xl transition text-[11px] group"
                 >
                   <div className="font-bold text-slate-800 group-hover:text-blue-700 truncate">
