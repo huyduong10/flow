@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { requestApi } from '../../services/api';
-import { Plus, Trash2, X, Send, AlertCircle, Building } from 'lucide-react';
+import { materialRequestApi } from '../../services/api';
+import ProjectSelect from '../common/ProjectSelect';
+import { Plus, Trash2, X, Send, AlertCircle, Building, Warehouse } from 'lucide-react';
 
 const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
-  const [projectName, setProjectName] = useState('Tòa nhà phức hợp Landmark Riverside (Giai đoạn 2)');
+  const [projectId, setProjectId] = useState('');
+  const [projectName, setProjectName] = useState('');
   const [note, setNote] = useState('');
   const [items, setItems] = useState([
     { name: 'Thép Hòa Phát phi 18 (D18)', quantity: 25, unit: 'Tấn', note: 'Chuẩn CB400-V' },
@@ -34,8 +36,8 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
     e.preventDefault();
     setError('');
 
-    if (!projectName.trim()) {
-      setError('Vui lòng nhập tên công trình');
+    if (!projectId) {
+      setError('Vui lòng chọn dự án / công trình');
       return;
     }
 
@@ -56,15 +58,21 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
 
     setLoading(true);
     try {
-      await requestApi.create({
-        projectName: projectName.trim(),
-        items,
+      await materialRequestApi.create({
+        projectId,
+        project: projectName.trim(),
+        items: items.map((it) => ({
+          materialName: it.name.trim(),
+          unit: it.unit.trim(),
+          requestedQty: Number(it.quantity),
+          note: it.note ? it.note.trim() : '',
+        })),
         note: note.trim(),
       });
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || 'Có lỗi xảy ra khi tạo yêu cầu');
+      setError(err.response?.data?.message || 'Có lỗi xảy ra khi tạo yêu cầu cấp vật tư');
     } finally {
       setLoading(false);
     }
@@ -77,11 +85,15 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-              <Building className="w-5 h-5" />
+              <Warehouse className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Lập Yêu Cầu Cấp Vật Tư (Purchase Request)</h3>
-              <p className="text-xs text-slate-500">Dành cho Trưởng công trình gửi CEO phê duyệt</p>
+              <h3 className="text-base font-bold text-slate-900">
+                Lập Yêu Cầu Cấp Vật Tư (Gửi Kho Kiểm Tra)
+              </h3>
+              <p className="text-xs text-slate-500">
+                Đơn sẽ được chuyển đến Bộ phận Quản lý kho để kiểm tra tồn kho & xuất cấp trước
+              </p>
             </div>
           </div>
           <button
@@ -101,18 +113,19 @@ const CreateRequestModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
           )}
 
-          {/* Project Name */}
+          {/* Project Select */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Tên Công trình / Dự án <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
+            <ProjectSelect
+              label="Dự án / Công trình"
               required
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder="VD: Cầu Thủ Thiêm 4 - Hạng mục Trụ T12"
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition"
+              value={projectId}
+              assignedOnly={false}
+              showBudget={true}
+              onChange={(id, p) => {
+                setProjectId(id);
+                setProjectName(p ? p.name : '');
+              }}
+              placeholder="-- Chọn dự án / công trình --"
             />
           </div>
 

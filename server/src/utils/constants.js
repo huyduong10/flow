@@ -78,7 +78,27 @@ const PAYMENT_PROPOSAL_STATUS = Object.freeze({
   PENDING_CHAIRMAN: 'PENDING_CHAIRMAN',                 // CEO duyệt sơ bộ (>= 50tr), chờ Chairman
   WAITING_CHAIRMAN_APPROVAL: 'PENDING_CHAIRMAN',       // Alias tương thích
   APPROVED_READY_TO_PAY: 'APPROVED_READY_TO_PAY',       // Đã duyệt, sẵn sàng chi tiền
+  PAID: 'PAID',                                         // Thủ quỹ đã chi tiền - hoàn tất
   REJECTED: 'REJECTED',                                 // Bị từ chối
+});
+
+/**
+ * Các trạng thái đề xuất thanh toán được tính là "đang chờ giải ngân"
+ * (đang duyệt hoặc đã duyệt nhưng chưa chi) - dùng cho thống kê chi phí dự án
+ */
+const PAYMENT_PENDING_STATUSES = Object.freeze([
+  PAYMENT_PROPOSAL_STATUS.PENDING_CEO_APPROVAL,
+  PAYMENT_PROPOSAL_STATUS.PENDING_CHAIRMAN,
+  PAYMENT_PROPOSAL_STATUS.APPROVED_READY_TO_PAY,
+]);
+
+/**
+ * Trạng thái Dự án (Project)
+ */
+const PROJECT_STATUS = Object.freeze({
+  ACTIVE: 'ACTIVE',         // Đang thi công
+  COMPLETED: 'COMPLETED',   // Đã hoàn thành
+  ON_HOLD: 'ON_HOLD',       // Tạm dừng
 });
 
 /**
@@ -110,6 +130,8 @@ module.exports = {
   VENDOR_COMPARISON_STATUS,
   CONTRACT_STATUS,
   PAYMENT_PROPOSAL_STATUS,
+  PAYMENT_PENDING_STATUSES,
+  PROJECT_STATUS,
   DISBURSEMENT_STATUS,
   PAYMENT_TYPE,
   CHAIRMAN_APPROVAL_THRESHOLD,

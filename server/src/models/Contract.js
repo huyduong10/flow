@@ -14,6 +14,12 @@ const contractSchema = new mongoose.Schema(
       ref: 'VendorQuote',
       required: [true, 'Bảng so sánh NCC liên kết là bắt buộc'],
     },
+    // Dự án / Công trình liên kết
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      required: [true, 'Dự án liên kết là bắt buộc'],
+    },
     // Liên kết PurchaseRequest gốc
     purchaseRequest: {
       type: mongoose.Schema.Types.ObjectId,
@@ -80,10 +86,10 @@ const contractSchema = new mongoose.Schema(
 );
 
 // Index
+contractSchema.index({ projectId: 1 });
 contractSchema.index({ vendorQuote: 1 });
 contractSchema.index({ purchaseRequest: 1 });
 contractSchema.index({ status: 1 });
-contractSchema.index({ code: 1 }, { unique: true });
 
 // Tự sinh mã CT-YYYYMMDD-XXXX
 contractSchema.pre('save', async function (next) {

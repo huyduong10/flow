@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const MaterialRequest = require('./material-request.model');
+const Project = require('../projects/project.model');
 const { MATERIAL_REQUEST_STATUS, ROLES } = require('../../utils/constants');
 
 /**
@@ -8,12 +9,37 @@ const { MATERIAL_REQUEST_STATUS, ROLES } = require('../../utils/constants');
  */
 const createMaterialRequest = async (req, res) => {
   try {
-    const { project, items } = req.body;
+    const { project, projectId, items } = req.body;
 
-    if (!project || !project.trim()) {
+    let resolvedProjectId = projectId;
+
+    if (resolvedProjectId) {
+      const pDoc = await Project.findById(resolvedProjectId);
+      if (!pDoc) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy dự án đã chọn.',
+        });
+      }
+    } else if (project && project.trim()) {
+      let pDoc = await Project.findOne({
+        $or: [
+          { name: new RegExp(`^${project.trim()}$`, 'i') },
+          { code: project.trim().toUpperCase() },
+        ],
+      });
+      if (!pDoc) {
+        pDoc = await Project.findOne({ status: 'ACTIVE' });
+      }
+      if (pDoc) {
+        resolvedProjectId = pDoc._id;
+      }
+    }
+
+    if (!resolvedProjectId) {
       return res.status(400).json({
         success: false,
-        message: 'Tên dự án/công trình là bắt buộc.',
+        message: 'Dự án (projectId) là bắt buộc.',
       });
     }
 
@@ -57,13 +83,14 @@ const createMaterialRequest = async (req, res) => {
     }
 
     const materialRequest = await MaterialRequest.create({
-      project: project.trim(),
+      projectId: resolvedProjectId,
       items: validatedItems,
       requestedBy: req.user._id,
       status: MATERIAL_REQUEST_STATUS.PENDING_WAREHOUSE,
     });
 
     await materialRequest.populate('requestedBy', 'fullName email phone role');
+    await materialRequest.populate('projectId', 'code name allocatedBudget status');
 
     return res.status(201).json({
       success: true,
@@ -88,7 +115,7 @@ const createMaterialRequest = async (req, res) => {
  */
 const getMaterialRequests = async (req, res) => {
   try {
-    const { status, project, page = 1, limit = 20 } = req.query;
+    const { status, project, projectId, page = 1, limit = 20 } = req.query;
     const filter = {};
 
     if (req.user.role === ROLES.SITE_MANAGER) {
@@ -99,7 +126,9 @@ const getMaterialRequests = async (req, res) => {
       filter.status = status;
     }
 
-    if (project && project.trim()) {
+    if (projectId && mongoose.Types.ObjectId.isValid(projectId)) {
+      filter.projectId = projectId;
+    } else if (project && project.trim()) {
       filter.project = new RegExp(project.trim(), 'i');
     }
 
@@ -110,6 +139,7 @@ const getMaterialRequests = async (req, res) => {
         .populate('requestedBy', 'fullName email phone role')
         .populate('warehouseInspectorId', 'fullName email phone role')
         .populate('procurementRequestId', 'code status')
+        .populate('projectId', 'code name allocatedBudget status')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -154,7 +184,8 @@ const getMaterialRequestById = async (req, res) => {
     const materialRequest = await MaterialRequest.findById(id)
       .populate('requestedBy', 'fullName email phone role')
       .populate('warehouseInspectorId', 'fullName email phone role')
-      .populate('procurementRequestId', 'code status items createdAt approvedAt');
+      .populate('procurementRequestId', 'code status items createdAt approvedAt')
+      .populate('projectId', 'code name allocatedBudget status');
 
     if (!materialRequest) {
       return res.status(404).json({

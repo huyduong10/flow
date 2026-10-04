@@ -35,11 +35,17 @@ const purchaseRequestSchema = new mongoose.Schema(
       type: String,
       unique: true,
     },
-    // Công trình / dự án
+    // Dự án / Công trình thi công
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      required: [true, 'Dự án là bắt buộc'],
+    },
+    // Tên công trình
     projectName: {
       type: String,
-      required: [true, 'Tên công trình là bắt buộc'],
       trim: true,
+      default: '',
     },
     // Danh sách vật tư
     items: {
@@ -100,6 +106,7 @@ const purchaseRequestSchema = new mongoose.Schema(
 // Indexes
 purchaseRequestSchema.index({ status: 1 });
 purchaseRequestSchema.index({ createdBy: 1 });
+purchaseRequestSchema.index({ projectId: 1 });
 purchaseRequestSchema.index({ materialRequestId: 1 });
 
 // Tự sinh mã PR-YYYYMMDD-XXXX

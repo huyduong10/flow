@@ -40,7 +40,7 @@ const createContract = async (req, res) => {
     }
 
     // ── Kiểm tra VendorQuote ────────────────────────────────
-    const vendorQuote = await VendorQuote.findById(vendorQuoteId);
+    const vendorQuote = await VendorQuote.findById(vendorQuoteId).populate('purchaseRequest');
     if (!vendorQuote) {
       return res.status(404).json({
         success: false,
@@ -52,6 +52,15 @@ const createContract = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: `NCC chưa được phê duyệt. Trạng thái hiện tại: "${vendorQuote.status}".`,
+      });
+    }
+
+    // Xác định projectId từ request body hoặc từ purchaseRequest
+    const projectId = req.body.projectId || vendorQuote.purchaseRequest?.projectId;
+    if (!projectId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không tìm thấy thông tin dự án liên kết.',
       });
     }
 
@@ -85,7 +94,8 @@ const createContract = async (req, res) => {
     // ── Tạo Contract ────────────────────────────────────────
     const contract = await Contract.create({
       vendorQuote: vendorQuoteId,
-      purchaseRequest: vendorQuote.purchaseRequest,
+      projectId,
+      purchaseRequest: vendorQuote.purchaseRequest?._id || vendorQuote.purchaseRequest,
       vendorName: recommendedVendor.vendorName,
       totalValue: parseFloat(totalValue),
       files,
@@ -95,6 +105,7 @@ const createContract = async (req, res) => {
     });
 
     await contract.populate('createdBy', 'fullName email role');
+    await contract.populate('projectId', 'code name allocatedBudget status');
     await contract.populate('purchaseRequest', 'code projectName');
 
     res.status(201).json({
@@ -136,6 +147,7 @@ const getContracts = async (req, res) => {
     const [contracts, total] = await Promise.all([
       Contract.find(filter)
         .populate('createdBy', 'fullName email role')
+        .populate('projectId', 'code name allocatedBudget status')
         .populate('purchaseRequest', 'code projectName')
         .populate('handedOverBy', 'fullName email role')
         .sort({ createdAt: -1 })
@@ -171,6 +183,7 @@ const getContractById = async (req, res) => {
   try {
     const contract = await Contract.findById(req.params.id)
       .populate('createdBy', 'fullName email role')
+      .populate('projectId', 'code name allocatedBudget status')
       .populate('purchaseRequest', 'code projectName items')
       .populate('vendorQuote')
       .populate('handedOverBy', 'fullName email role');

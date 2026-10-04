@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 require('dotenv').config();
 const http = require('http');
 const connectDB = require('../src/config/database');

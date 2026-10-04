@@ -31,9 +31,9 @@ const Navbar = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-slate-900 tracking-tight text-lg">FlowBuild</span>
+                <span className="font-extrabold text-slate-900 tracking-tight text-lg">TAG FLOW</span>
                 <span className="text-[11px] font-semibold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">
-                  ERP Doanh Nghiệp
+                  ERP FINANCE
                 </span>
               </div>
               <p className="text-xs text-slate-500 hidden sm:block">

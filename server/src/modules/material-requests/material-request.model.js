@@ -44,10 +44,10 @@ const materialRequestSchema = new mongoose.Schema(
       trim: true,
     },
     // Dự án / Công trình thi công
-    project: {
-      type: String,
-      required: [true, 'Tên dự án là bắt buộc'],
-      trim: true,
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      required: [true, 'Dự án là bắt buộc'],
     },
     // Người yêu cầu (Trưởng thi công - SITE_MANAGER)
     requestedBy: {
@@ -111,6 +111,7 @@ const materialRequestSchema = new mongoose.Schema(
 // Indexes tối ưu truy vấn
 materialRequestSchema.index({ status: 1 });
 materialRequestSchema.index({ requestedBy: 1 });
+materialRequestSchema.index({ projectId: 1 });
 materialRequestSchema.index({ createdAt: -1 });
 
 // Tự động sinh mã phiếu MR-YYYY-XXXX trước khi lưu

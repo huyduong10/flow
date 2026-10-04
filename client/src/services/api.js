@@ -30,10 +30,18 @@ api.interceptors.response.use(
   }
 );
 
-// ─── API Endpoints ──────────────────────────────────────────
 export const authApi = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   getMe: () => api.get('/auth/me'),
+  getUsers: (params) => api.get('/auth/users', { params }),
+};
+
+export const projectApi = {
+  getAll: (params) => api.get('/projects', { params }),
+  getById: (id) => api.get(`/projects/${id}`),
+  create: (data) => api.post('/projects', data),
+  getExpenseSummary: (projectId) =>
+    api.get('/projects/expense-summary', { params: { projectId } }),
 };
 
 export const requestApi = {

@@ -223,7 +223,8 @@ const checkAndProcessStock = async (req, res) => {
         const [newPR] = await PurchaseRequest.create(
           [
             {
-              projectName: materialRequest.project,
+              projectId: materialRequest.projectId,
+              projectName: materialRequest.project || '',
               items: shortageItemsForProcurement,
               note: `Đơn mua sắm tự động tách từ Yêu cầu vật tư ${materialRequest.requestCode} do kho không đủ số lượng cấp. Ghi chú thủ kho: ${notes || 'Không có'}`,
               status: PURCHASE_REQUEST_STATUS.PENDING_CEO_APPROVAL,

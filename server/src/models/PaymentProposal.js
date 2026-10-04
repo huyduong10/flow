@@ -34,6 +34,12 @@ const paymentProposalSchema = new mongoose.Schema(
       type: String,
       unique: true,
     },
+    // Dự án / Công trình liên kết
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      required: [true, 'Dự án liên kết là bắt buộc'],
+    },
     // Liên kết Contract
     contract: {
       type: mongoose.Schema.Types.ObjectId,
@@ -162,6 +168,7 @@ const paymentProposalSchema = new mongoose.Schema(
 );
 
 // Index
+paymentProposalSchema.index({ projectId: 1 });
 paymentProposalSchema.index({ contract: 1 });
 paymentProposalSchema.index({ status: 1 });
 paymentProposalSchema.index({ createdBy: 1 });

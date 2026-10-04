@@ -88,4 +88,28 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { login, getMe };
+/**
+ * GET /api/auth/users
+ * Lấy danh sách nhân sự (lọc theo role, VD: SITE_MANAGER)
+ */
+const getUsers = async (req, res) => {
+  try {
+    const { role } = req.query;
+    const filter = { isActive: true };
+    if (role) filter.role = role;
+
+    const users = await User.find(filter).select('-password').sort({ fullName: 1 });
+    return res.json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    console.error('getUsers error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi hệ thống khi lấy danh sách người dùng.',
+    });
+  }
+};
+
+module.exports = { login, getMe, getUsers };

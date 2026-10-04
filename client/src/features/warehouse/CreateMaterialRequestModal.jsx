@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { materialRequestApi } from '../../services/api';
+import ProjectSelect from '../../components/common/ProjectSelect';
 import {
   X,
   Plus,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 
 const CreateMaterialRequestModal = ({ isOpen, onClose, onSuccess }) => {
+  const [projectId, setProjectId] = useState('');
   const [project, setProject] = useState('');
   const [items, setItems] = useState([
     { materialName: '', unit: '', requestedQty: '' },
@@ -42,8 +44,8 @@ const CreateMaterialRequestModal = ({ isOpen, onClose, onSuccess }) => {
     e.preventDefault();
     setError('');
 
-    if (!project.trim()) {
-      setError('Vui lòng nhập tên công trình / dự án.');
+    if (!projectId) {
+      setError('Vui lòng chọn công trình / dự án.');
       return;
     }
 
@@ -67,6 +69,7 @@ const CreateMaterialRequestModal = ({ isOpen, onClose, onSuccess }) => {
     setLoading(true);
     try {
       const payload = {
+        projectId,
         project: project.trim(),
         items: items.map((i) => ({
           materialName: i.materialName.trim(),
@@ -127,21 +130,19 @@ const CreateMaterialRequestModal = ({ isOpen, onClose, onSuccess }) => {
           )}
 
           {/* Dự án */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 block">
-              Tên Công trình / Dự án (*):
-            </label>
-            <div className="relative">
-              <Building className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                required
-                value={project}
-                onChange={(e) => setProject(e.target.value)}
-                placeholder="VD: Tòa nhà hỗn hợp Flow Complex (Giai đoạn móng)"
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
+          <div>
+            <ProjectSelect
+              label="Tên Công trình / Dự án"
+              required
+              value={projectId}
+              assignedOnly={false}
+              showBudget={true}
+              onChange={(id, p) => {
+                setProjectId(id);
+                setProject(p ? p.name : '');
+              }}
+              placeholder="-- Chọn dự án / công trình --"
+            />
           </div>
 
           {/* Danh sách vật tư */}

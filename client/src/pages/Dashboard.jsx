@@ -27,6 +27,12 @@ import ContractUploadModal from '../components/modals/ContractUploadModal';
 import CreatePaymentModal from '../components/modals/CreatePaymentModal';
 import PaymentApprovalModal from '../components/modals/PaymentApprovalModal';
 import DisbursementModal from '../components/modals/DisbursementModal';
+import CreateProjectModal from '../components/modals/CreateProjectModal';
+
+// Project Cost Tracking Components
+import ProjectSelect from '../components/common/ProjectSelect';
+import ProjectExpenseSummaryCard from '../components/dashboard/ProjectExpenseSummaryCard';
+import PaymentProposalList from '../components/dashboard/PaymentProposalList';
 
 import {
   ClipboardList,
@@ -49,11 +55,18 @@ import {
   Warehouse,
   Truck,
   PackageCheck,
+  FolderGit2,
+  LayoutGrid,
+  ListOrdered,
 } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Project Filter state
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Data states
   const [requests, setRequests] = useState([]);
@@ -65,6 +78,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false);
 
   // Modal active states
+  const [openCreateProject, setOpenCreateProject] = useState(false);
   const [openCreatePR, setOpenCreatePR] = useState(false);
   const [openCreateMR, setOpenCreateMR] = useState(false);
   const [activeCeoPR, setActiveCeoPR] = useState(null);
@@ -74,19 +88,24 @@ const Dashboard = () => {
   const [activePaymentApproval, setActivePaymentApproval] = useState(null);
   const [activeDisbursement, setActiveDisbursement] = useState(null);
 
-  // Filter
-  const [activeTab, setActiveTab] = useState('KANBAN'); // KANBAN or TABLE
+  // Filter & Tabs
+  const [activeTab, setActiveTab] = useState('KANBAN'); // KANBAN or PAYMENTS
   const [searchTerm, setSearchTerm] = useState('');
 
-  const loadAllData = async () => {
+  const loadAllData = async (projId = selectedProjectId) => {
     setLoading(true);
     try {
+      const params = { limit: 50 };
+      if (projId && projId !== 'ALL') {
+        params.projectId = projId;
+      }
+
       const [reqRes, vqRes, ctRes, payRes, mrRes, whRes] = await Promise.allSettled([
-        requestApi.getAll({ limit: 50 }),
+        requestApi.getAll(params),
         vendorApi.getAll({ limit: 50 }),
-        contractApi.getAll({ limit: 50 }),
-        paymentApi.getAll({ limit: 50 }),
-        materialRequestApi.getAll({ limit: 50 }),
+        contractApi.getAll(params),
+        paymentApi.getAll(params),
+        materialRequestApi.getAll(params),
         warehouseApi.getPendingRequests(),
       ]);
 
@@ -104,12 +123,18 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    loadAllData();
-  }, [user]);
+    loadAllData(selectedProjectId);
+  }, [user, selectedProjectId]);
+
+  const handleDataRefresh = () => {
+    loadAllData(selectedProjectId);
+    setRefreshTrigger((prev) => prev + 1);
+  };
 
   // Thống kê nhanh
   const stats = {
-    totalRequests: requests.length,
+    totalRequests: requests.length + materialRequests.length,
+    pendingWarehouse: materialRequests.filter((m) => m.status === 'PENDING_WAREHOUSE').length,
     pendingCeoPR: requests.filter((r) => r.status === 'PENDING_CEO_APPROVAL').length,
     pendingVendorApproval: vendorQuotes.filter((v) => v.status === 'PENDING_APPROVAL').length,
     totalContracts: contracts.length,
@@ -136,14 +161,23 @@ const Dashboard = () => {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                Theo dõi vòng đời từ <strong>Yêu cầu vật tư</strong> $\rightarrow$ <strong>Báo giá NCC</strong> $\rightarrow$ <strong>Hợp đồng</strong> $\rightarrow$ <strong>Đề xuất thanh toán</strong> $\rightarrow$ <strong>Chi quỹ</strong>.
+                Theo dõi vòng đời từ <strong>Yêu cầu vật tư</strong>-<strong>Báo giá NCC</strong>-<strong>Hợp đồng</strong>-<strong>Đề xuất thanh toán</strong>-<strong>Chi quỹ</strong>.
               </p>
             </div>
 
-            {/* Quick action theo Role */}
-            <div className="flex items-center gap-2.5">
+            {/* Quick action theo Role & Dropdown Chọn Dự Án */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="w-56 sm:w-64">
+                <ProjectSelect
+                  value={selectedProjectId}
+                  onChange={(id) => setSelectedProjectId(id)}
+                  allowAll={true}
+                  placeholder="-- Tất cả dự án --"
+                />
+              </div>
+
               <button
-                onClick={loadAllData}
+                onClick={handleDataRefresh}
                 disabled={loading}
                 className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-xl transition flex items-center gap-1.5"
                 title="Làm mới dữ liệu"
@@ -151,6 +185,17 @@ const Dashboard = () => {
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                 Làm mới
               </button>
+
+              {/* Thêm Dự Án chỉ dành cho Ban Giám Đốc (CEO, CHAIRMAN) */}
+              {(user?.role === ROLES.CEO || user?.role === ROLES.CHAIRMAN) && (
+                <button
+                  onClick={() => setOpenCreateProject(true)}
+                  className="px-3.5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded-xl shadow-md shadow-indigo-500/20 flex items-center gap-1.5 transition"
+                  title="Khởi tạo dự án công trình mới & phê duyệt hạn mức ngân sách"
+                >
+                  <Plus className="w-4 h-4" /> Thêm Dự Án
+                </button>
+              )}
 
               {user?.role === ROLES.WAREHOUSE_MANAGER && (
                 <button
@@ -162,21 +207,12 @@ const Dashboard = () => {
               )}
 
               {user?.role === ROLES.SITE_MANAGER && (
-                <>
-                  <button
-                    onClick={() => setOpenCreateMR(true)}
-                    className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 rounded-xl shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition"
-                  >
-                    <Plus className="w-4 h-4" /> Yêu Cầu Cấp Vật Tư (Gửi Kho)
-                  </button>
-
-                  <button
-                    onClick={() => setOpenCreatePR(true)}
-                    className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition"
-                  >
-                    <Plus className="w-4 h-4" /> Mua Sắm Trực Tiếp
-                  </button>
-                </>
+                <button
+                  onClick={() => setOpenCreatePR(true)}
+                  className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 rounded-xl shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition"
+                >
+                  <Warehouse className="w-4 h-4" /> Lập Yêu Cầu Cấp Vật Tư (Gửi Kho)
+                </button>
               )}
             </div>
           </div>
@@ -251,7 +287,10 @@ const Dashboard = () => {
             <div className="bg-slate-50 border border-slate-200/70 p-3 rounded-xl">
               <span className="text-[11px] font-semibold text-slate-500 uppercase">Yêu cầu vật tư</span>
               <div className="text-lg font-bold text-slate-900 mt-0.5">{stats.totalRequests}</div>
-              <span className="text-[11px] text-amber-600 font-medium">{stats.pendingCeoPR} chờ CEO duyệt</span>
+              <span className="text-[11px] text-amber-600 font-medium">
+                {stats.pendingWarehouse > 0 ? `${stats.pendingWarehouse} chờ kho | ` : ''}
+                {stats.pendingCeoPR} chờ CEO
+              </span>
             </div>
 
             <div className="bg-slate-50 border border-slate-200/70 p-3 rounded-xl">
@@ -289,9 +328,51 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* KANBAN BOARD 5 GIAI ĐOẠN */}
+      {/* PROJECT EXPENSE SUMMARY & COST TRACKING */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-start">
+        <ProjectExpenseSummaryCard
+          projectId={selectedProjectId}
+          onRefresh={handleDataRefresh}
+        />
+
+        {/* VIEW TABS & SWITCHER */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center space-x-2 bg-slate-200/80 p-1 rounded-xl">
+            <button
+              onClick={() => setActiveTab('KANBAN')}
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition ${
+                activeTab === 'KANBAN'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Tiến Độ 5 Giai Đoạn (Kanban)</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('PAYMENTS')}
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition ${
+                activeTab === 'PAYMENTS'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <ListOrdered className="w-3.5 h-3.5" />
+              <span>Bảng Đề Xuất Thanh Toán ({payments.length})</span>
+            </button>
+          </div>
+        </div>
+
+        {activeTab === 'PAYMENTS' ? (
+          <PaymentProposalList
+            projectId={selectedProjectId}
+            onApprove={(pm) => setActivePaymentApproval(pm)}
+            onDisburse={(pm) => setActiveDisbursement(pm)}
+            refreshTrigger={refreshTrigger}
+          />
+        ) : (
+          /* KANBAN BOARD 5 GIAI ĐOẠN */
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-start">
           {/* CỘT 1: YÊU CẦU VẬT TƯ (SITE_MANAGER) */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[500px]">
             <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 rounded-t-2xl">
@@ -304,74 +385,170 @@ const Dashboard = () => {
                 </h4>
               </div>
               <span className="text-xs font-bold bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded-full">
-                {requests.length}
+                {materialRequests.length + requests.length}
               </span>
             </div>
 
             <div className="p-3 space-y-3 flex-1 overflow-y-auto max-h-[680px]">
-              {requests.length === 0 ? (
+              {materialRequests.length === 0 && requests.length === 0 ? (
                 <div className="text-center py-8 text-xs text-slate-400">Chưa có yêu cầu nào</div>
               ) : (
-                requests.map((req) => {
-                  const statusInfo = STATUS_LABELS[req.status] || { label: req.status, color: 'bg-slate-100' };
-                  const isCeo = user?.role === ROLES.CEO;
-                  const isProcurement = user?.role === ROLES.PROCUREMENT;
-                  const hasQuote = vendorQuotes.some((vq) => vq.purchaseRequest?._id === req._id || vq.purchaseRequest === req._id);
+                <>
+                  {/* DANH SÁCH YÊU CẦU CẤP KHO (MATERIAL REQUESTS) */}
+                  {materialRequests.map((mr) => {
+                    const statusInfo = STATUS_LABELS[mr.status] || {
+                      label: mr.status,
+                      color: 'bg-amber-100 text-amber-800 border-amber-200',
+                    };
+                    const isWarehouse = user?.role === ROLES.WAREHOUSE_MANAGER;
+                    const isSiteManager = user?.role === ROLES.SITE_MANAGER;
 
-                  return (
-                    <div
-                      key={req._id}
-                      className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition space-y-2.5"
-                    >
-                      <div className="flex items-start justify-between gap-1">
-                        <span className="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
-                          {req.code}
-                        </span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusInfo.color}`}>
-                          {statusInfo.label}
-                        </span>
-                      </div>
-
-                      <div className="font-bold text-xs text-slate-900 line-clamp-2">
-                        {req.projectName}
-                      </div>
-
-                      <div className="text-[11px] text-slate-500 space-y-0.5">
-                        <div>Vật tư: <strong>{req.items?.length || 0} mục</strong> ({req.items?.[0]?.name}...)</div>
-                        <div>Người lập: {req.createdBy?.fullName || 'Trưởng thi công'}</div>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
-                        {/* CEO Duyệt PR */}
-                        {isCeo && req.status === 'PENDING_CEO_APPROVAL' && (
-                          <button
-                            onClick={() => setActiveCeoPR(req)}
-                            className="w-full py-1.5 text-[11px] font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition flex items-center justify-center gap-1 shadow-sm"
+                    return (
+                      <div
+                        key={`mr-${mr._id}`}
+                        className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/20 hover:border-emerald-300 hover:shadow-sm transition space-y-2.5"
+                      >
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-[11px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              {mr.requestCode}
+                            </span>
+                            <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100/70 px-1 py-0.5 rounded">
+                              Cấp kho
+                            </span>
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusInfo.color}`}
                           >
-                            CEO Phê Duyệt
-                          </button>
-                        )}
-
-                        {/* Thu mua chuyển sang khảo sát NCC */}
-                        {isProcurement && req.status === 'APPROVED_BY_CEO' && !hasQuote && (
-                          <button
-                            onClick={() => setActiveVendorModal(req)}
-                            className="w-full py-1.5 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition flex items-center justify-center gap-1 shadow-sm"
-                          >
-                            + Khảo sát NCC
-                          </button>
-                        )}
-
-                        {hasQuote && (
-                          <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
-                            ✓ Đã lập báo giá NCC
+                            {statusInfo.label}
                           </span>
-                        )}
+                        </div>
+
+                        <div className="font-bold text-xs text-slate-900 line-clamp-2">
+                          {mr.projectId?.name || mr.project || 'Dự án công trình'}
+                        </div>
+
+                        <div className="text-[11px] text-slate-500 space-y-0.5">
+                          <div>
+                            Vật tư: <strong>{mr.items?.length || 0} mục</strong> (
+                            {mr.items?.[0]?.materialName}...)
+                          </div>
+                          <div>Người lập: {mr.requestedBy?.fullName || 'Trưởng thi công'}</div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
+                          {isWarehouse && mr.status === 'PENDING_WAREHOUSE' ? (
+                            <button
+                              onClick={() => navigate(`/warehouse/requests/${mr._id}`)}
+                              className="w-full py-1.5 text-[11px] font-bold text-white bg-cyan-600 hover:bg-cyan-700 rounded-lg transition flex items-center justify-center gap-1 shadow-sm"
+                            >
+                              <Warehouse className="w-3.5 h-3.5" /> Kiểm tra tồn kho
+                            </button>
+                          ) : isSiteManager && mr.status === 'WAITING_SITE_CONFIRMATION' ? (
+                            <button
+                              onClick={() => navigate(`/material-requests/${mr._id}`)}
+                              className="w-full py-1.5 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition flex items-center justify-center gap-1 shadow-sm"
+                            >
+                              <PackageCheck className="w-3.5 h-3.5" /> Xác nhận nhận hàng
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() =>
+                                navigate(
+                                  isWarehouse
+                                    ? `/warehouse/requests/${mr._id}`
+                                    : `/material-requests/${mr._id}`
+                                )
+                              }
+                              className="w-full py-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 rounded-lg transition flex items-center justify-center gap-1"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> Chi tiết cấp kho
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+
+                  {/* DANH SÁCH YÊU CẦU MUA SẮM NGOÀI (PURCHASE REQUESTS) */}
+                  {requests.map((req) => {
+                    const statusInfo = STATUS_LABELS[req.status] || {
+                      label: req.status,
+                      color: 'bg-slate-100 text-slate-700',
+                    };
+                    const isCeo = user?.role === ROLES.CEO;
+                    const isProcurement = user?.role === ROLES.PROCUREMENT;
+                    const hasQuote = vendorQuotes.some(
+                      (vq) =>
+                        vq.purchaseRequest?._id === req._id || vq.purchaseRequest === req._id
+                    );
+
+                    return (
+                      <div
+                        key={`pr-${req._id}`}
+                        className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition space-y-2.5"
+                      >
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                              {req.code}
+                            </span>
+                            <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-1 py-0.5 rounded border border-purple-200">
+                              Mua ngoài
+                            </span>
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusInfo.color}`}
+                          >
+                            {statusInfo.label}
+                          </span>
+                        </div>
+
+                        <div className="font-bold text-xs text-slate-900 line-clamp-2">
+                          {req.projectName}
+                        </div>
+
+                        <div className="text-[11px] text-slate-500 space-y-0.5">
+                          <div>
+                            Vật tư: <strong>{req.items?.length || 0} mục</strong> (
+                            {req.items?.[0]?.name}...)
+                          </div>
+                          <div>Người lập: {req.createdBy?.fullName || 'Trưởng thi công'}</div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
+                          {/* CEO Duyệt PR */}
+                          {isCeo && req.status === 'PENDING_CEO_APPROVAL' && (
+                            <button
+                              onClick={() => setActiveCeoPR(req)}
+                              className="w-full py-1.5 text-[11px] font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition flex items-center justify-center gap-1 shadow-sm"
+                            >
+                              CEO Phê Duyệt
+                            </button>
+                          )}
+
+                          {/* Thu mua chuyển sang khảo sát NCC */}
+                          {isProcurement && req.status === 'APPROVED_BY_CEO' && !hasQuote && (
+                            <button
+                              onClick={() => setActiveVendorModal(req)}
+                              className="w-full py-1.5 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition flex items-center justify-center gap-1 shadow-sm"
+                            >
+                              + Khảo sát NCC
+                            </button>
+                          )}
+
+                          {hasQuote && (
+                            <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                              ✓ Đã lập báo giá NCC
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
               )}
             </div>
           </div>
@@ -683,61 +860,71 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* ALL MODALS */}
       <CreateRequestModal
         isOpen={openCreatePR}
         onClose={() => setOpenCreatePR(false)}
-        onSuccess={loadAllData}
+        onSuccess={handleDataRefresh}
       />
 
       <CreateMaterialRequestModal
         isOpen={openCreateMR}
         onClose={() => setOpenCreateMR(false)}
-        onSuccess={loadAllData}
+        onSuccess={handleDataRefresh}
       />
 
       <CEOApprovalModal
         isOpen={!!activeCeoPR}
         onClose={() => setActiveCeoPR(null)}
         request={activeCeoPR}
-        onSuccess={loadAllData}
+        onSuccess={handleDataRefresh}
       />
 
       <VendorSelectionModal
         isOpen={!!activeVendorModal}
         onClose={() => setActiveVendorModal(null)}
         request={activeVendorModal}
-        onSuccess={loadAllData}
+        onSuccess={handleDataRefresh}
       />
 
       <ContractUploadModal
         isOpen={!!activeContractModal}
         onClose={() => setActiveContractModal(null)}
         vendorQuote={activeContractModal}
-        onSuccess={loadAllData}
+        onSuccess={handleDataRefresh}
       />
 
       <CreatePaymentModal
         isOpen={!!activeCreatePayment}
         onClose={() => setActiveCreatePayment(null)}
         contract={activeCreatePayment}
-        onSuccess={loadAllData}
+        onSuccess={handleDataRefresh}
       />
 
       <PaymentApprovalModal
         isOpen={!!activePaymentApproval}
         onClose={() => setActivePaymentApproval(null)}
         payment={activePaymentApproval}
-        onSuccess={loadAllData}
+        onSuccess={handleDataRefresh}
       />
 
       <DisbursementModal
         isOpen={!!activeDisbursement}
         onClose={() => setActiveDisbursement(null)}
         payment={activeDisbursement}
-        onSuccess={loadAllData}
+        onSuccess={handleDataRefresh}
+      />
+
+      <CreateProjectModal
+        isOpen={openCreateProject}
+        onClose={() => setOpenCreateProject(false)}
+        onSuccess={(newProject) => {
+          setSelectedProjectId(newProject._id);
+          handleDataRefresh();
+        }}
       />
     </div>
   );

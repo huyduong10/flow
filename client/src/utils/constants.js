@@ -129,6 +129,12 @@ export const STATUS_LABELS = {
   PAID: { label: 'Đã chi tiền', color: 'bg-teal-100 text-teal-800 border border-teal-200' },
 };
 
+export const PROJECT_STATUS = {
+  ACTIVE: 'ACTIVE',
+  COMPLETED: 'COMPLETED',
+  ON_HOLD: 'ON_HOLD',
+};
+
 export const CHAIRMAN_APPROVAL_THRESHOLD = 50_000_000; // 50,000,000 VNĐ
 
 export const formatCurrency = (amount) => {

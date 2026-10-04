@@ -38,6 +38,7 @@ const {
 } = require('./controllers/vendorController');
 
 app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/projects', require('./modules/projects/project.routes'));
 app.use('/api/requests', require('./routes/purchaseRequest.routes'));
 app.use('/api/vendor-quotes', require('./routes/vendor.routes'));
 app.use('/api/contracts', require('./routes/contract.routes'));

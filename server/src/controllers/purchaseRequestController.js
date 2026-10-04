@@ -1,4 +1,5 @@
 const PurchaseRequest = require('../models/PurchaseRequest');
+const Project = require('../models/Project');
 const {
   ROLES,
   PURCHASE_REQUEST_STATUS,
@@ -11,13 +12,30 @@ const {
  */
 const createRequest = async (req, res) => {
   try {
-    const { projectName, items, note } = req.body;
+    const { projectName, projectId, items, note } = req.body;
 
-    // ── Validate ────────────────────────────────────────────
-    if (!projectName || !projectName.trim()) {
+    let resolvedProjectId = projectId;
+    let resolvedProjectName = projectName ? projectName.trim() : '';
+
+    if (resolvedProjectId) {
+      const pDoc = await Project.findById(resolvedProjectId);
+      if (pDoc) {
+        resolvedProjectName = pDoc.name;
+      }
+    } else if (resolvedProjectName) {
+      let pDoc = await Project.findOne({ name: new RegExp(`^${resolvedProjectName}$`, 'i') });
+      if (!pDoc) {
+        pDoc = await Project.findOne({ status: 'ACTIVE' });
+      }
+      if (pDoc) {
+        resolvedProjectId = pDoc._id;
+      }
+    }
+
+    if (!resolvedProjectId) {
       return res.status(400).json({
         success: false,
-        message: 'Tên công trình là bắt buộc.',
+        message: 'Dự án (projectId hoặc projectName) là bắt buộc.',
       });
     }
 
@@ -53,15 +71,17 @@ const createRequest = async (req, res) => {
 
     // ── Tạo yêu cầu ────────────────────────────────────────
     const purchaseRequest = await PurchaseRequest.create({
-      projectName: projectName.trim(),
+      projectId: resolvedProjectId,
+      projectName: resolvedProjectName,
       items,
       note: note?.trim() || '',
       status: PURCHASE_REQUEST_STATUS.PENDING_CEO_APPROVAL,
       createdBy: req.user._id,
     });
 
-    // Populate thông tin người tạo
+    // Populate thông tin người tạo và dự án
     await purchaseRequest.populate('createdBy', 'fullName email role');
+    await purchaseRequest.populate('projectId', 'code name allocatedBudget status');
 
     res.status(201).json({
       success: true,
@@ -93,12 +113,16 @@ const createRequest = async (req, res) => {
  */
 const getRequests = async (req, res) => {
   try {
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, projectId, page = 1, limit = 20 } = req.query;
     const filter = {};
 
     // SITE_MANAGER chỉ xem yêu cầu của mình
     if (req.user.role === ROLES.SITE_MANAGER) {
       filter.createdBy = req.user._id;
+    }
+
+    if (projectId && (typeof projectId === 'string' && projectId.trim())) {
+      filter.projectId = projectId.trim();
     }
 
     // Lọc theo trạng thái nếu có
@@ -112,6 +136,7 @@ const getRequests = async (req, res) => {
       PurchaseRequest.find(filter)
         .populate('createdBy', 'fullName email role')
         .populate('approvedBy', 'fullName email role')
+        .populate('projectId', 'code name allocatedBudget status')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -145,7 +170,8 @@ const getRequestById = async (req, res) => {
   try {
     const request = await PurchaseRequest.findById(req.params.id)
       .populate('createdBy', 'fullName email role')
-      .populate('approvedBy', 'fullName email role');
+      .populate('approvedBy', 'fullName email role')
+      .populate('projectId', 'code name allocatedBudget status');
 
     if (!request) {
       return res.status(404).json({

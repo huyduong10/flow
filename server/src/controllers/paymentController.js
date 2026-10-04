@@ -149,8 +149,18 @@ const createPaymentProposal = async (req, res) => {
       });
     }
 
+    // ── Xác định projectId ─────────────────────────────────
+    const projectId = req.body.projectId || contract.projectId;
+    if (!projectId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không tìm thấy dự án liên kết với hợp đồng.',
+      });
+    }
+
     // ── Tạo PaymentProposal ─────────────────────────────────
     const proposal = await PaymentProposal.create({
+      projectId,
       contract: contractId,
       paymentType,
       proposedAmount,
@@ -167,6 +177,7 @@ const createPaymentProposal = async (req, res) => {
 
     await proposal.populate('createdBy', 'fullName email role');
     await proposal.populate('contract', 'code vendorName totalValue');
+    await proposal.populate('projectId', 'code name allocatedBudget status');
 
     res.status(201).json({
       success: true,
@@ -195,17 +206,26 @@ const createPaymentProposal = async (req, res) => {
  */
 const getPaymentProposals = async (req, res) => {
   try {
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, projectId, contractId, page = 1, limit = 20 } = req.query;
     const filter = {};
 
     if (status && Object.values(PAYMENT_PROPOSAL_STATUS).includes(status)) {
       filter.status = status;
     }
 
+    if (projectId && mongoose.Types.ObjectId.isValid(projectId)) {
+      filter.projectId = projectId;
+    }
+
+    if (contractId && mongoose.Types.ObjectId.isValid(contractId)) {
+      filter.contract = contractId;
+    }
+
     // Thủ quỹ chỉ thấy những đề xuất APPROVED_READY_TO_PAY hoặc đã PAID
     if (req.user.role === ROLES.TREASURER && !status) {
       filter.$or = [
         { status: PAYMENT_PROPOSAL_STATUS.APPROVED_READY_TO_PAY },
+        { status: PAYMENT_PROPOSAL_STATUS.PAID },
         { 'disbursement.status': DISBURSEMENT_STATUS.PAID },
       ];
     }
@@ -216,6 +236,7 @@ const getPaymentProposals = async (req, res) => {
       PaymentProposal.find(filter)
         .populate('createdBy', 'fullName email role')
         .populate('contract', 'code vendorName totalValue')
+        .populate('projectId', 'code name allocatedBudget status')
         .populate('ceoApprovedBy', 'fullName email role')
         .populate('chairmanApprovedBy', 'fullName email role')
         .populate('disbursement.paidBy', 'fullName email role')
@@ -475,7 +496,8 @@ const disbursePayment = async (req, res) => {
       });
     }
 
-    // ── Cập nhật disbursement ────────────────────────────────
+    // ── Cập nhật disbursement & status PAID ─────────────────
+    proposal.status = PAYMENT_PROPOSAL_STATUS.PAID;
     proposal.disbursement = {
       status: DISBURSEMENT_STATUS.PAID,
       transactionCode: transactionCode.trim(),
